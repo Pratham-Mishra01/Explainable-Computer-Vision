@@ -1,0 +1,34 @@
+# --- Environment & Dependencies ---
+# Never commit your virtual environment
+.venv/
+venv/
+env/
+ENV/
+bin/
+lib/
+# Local environment variables (API keys, etc.)
+.env
+
+# --- Python Cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# --- Operating System Files ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# --- IDE Settings ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Build & Distribution ---
+dist/
+build/
+*.egg-info/
