@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NEU Steel · Defect Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-label">Research Demo · v1.0</div>
+      <div class="brand-title">Steel Surface<br><em>Defect Analysis</em></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Analysis Modes</div>
+      <div class="nav-item active" data-tab="analyze" onclick="switchTab('analyze')">
+        <span class="nav-dot"></span>
+        <span class="nav-label">Classify &amp; Explain</span>
+      </div>
+      <div class="nav-item" data-tab="consistency" onclick="switchTab('consistency')">
+        <span class="nav-dot"></span>
+        <span class="nav-label">Consistency Explorer</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="model-badge">
+        <div class="badge-row">
+          <span class="badge-key">Model</span>
+          <span class="badge-val">ResNet-18</span>
+        </div>
+        <div class="badge-row">
+          <span class="badge-key">Dataset</span>
+          <span class="badge-val">NEU · 6 classes</span>
+        </div>
+        <div class="badge-row">
+          <span class="badge-key">Val. Acc.</span>
+          <span class="badge-val green">100 %</span>
+        </div>
+        <div class="badge-row" style="margin-top:10px">
+          <span class="badge-key"><span class="status-pulse"></span>Ready</span>
+          <span class="badge-val">GPU/CPU</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ── TAB: CLASSIFY & EXPLAIN ── -->
+    <section class="tab-panel active" id="tab-analyze">
+      <div class="panel-header">
+        <div>
+          <div class="panel-subtitle">Explainable AI · Grad-CAM</div>
+          <div class="panel-title">Classify &amp; <span>Explain</span></div>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        <div class="disclaimer-icon">NOTE</div>
+        <div class="disclaimer-text">
+          Confidence scores cluster near <strong>1.0</strong> on the NEU dataset — the model is near-pathologically certain on all samples.
+          Confidence values should therefore not be used to judge the quality of Grad-CAM explanations.
+          Focus Score independently measures explanation spread.
+        </div>
+      </div>
+
+      <div class="upload-zone" id="uploadZone"
+           onclick="document.getElementById('fileInput').click()"
+           ondragover="handleDragOver(event)"
+           ondragleave="handleDragLeave()"
+           ondrop="handleDrop(event)">
+        <div class="upload-icon">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="5" y="12" width="30" height="22" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/>
+            <path d="M20 6 L20 24 M14 12 L20 6 L26 12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="upload-primary">Drop a steel surface image here</div>
+        <div class="upload-secondary">or click to browse</div>
+        <div class="upload-hint">PNG · JPG · WEBP · Grayscale or RGB</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+
+      <div class="loading-state" id="loadingState">
+        <div class="loader-bar"></div>
+        <div class="loader-label">ANALYZING</div>
+        <div class="loader-bar"></div>
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <div class="results-area" id="resultsArea">
+        <div class="result-row">
+          <!-- Prediction -->
+          <div class="card">
+            <div class="card-label">Prediction</div>
+            <div class="prediction-class"><span class="class-highlight" id="predClass">—</span></div>
+            <div class="confidence-row">
+              <div>
+                <div class="confidence-val" id="confVal">—</div>
+                <div class="confidence-label">Confidence</div>
+              </div>
+            </div>
+            <div class="confidence-note" id="confNote"></div>
+          </div>
+
+          <!-- Focus Score -->
+          <div class="card">
+            <div class="card-label">Explanation Focus Score</div>
+            <div class="focus-score-val" id="focusVal">—</div>
+            <div id="focusBadge" class="focus-badge">—</div>
+            <div class="dist-bar-wrap">
+              <div class="dist-bar-labels">
+                <span>0.30 · focused</span>
+                <span>diffuse · 0.77</span>
+              </div>
+              <div class="dist-bar">
+                <div class="dist-bar-fill"></div>
+                <div class="dist-marker" id="distMarker" style="left:50%"></div>
+              </div>
+              <div class="dist-bar-caption" id="distCaption">Position within observed research distribution</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Images -->
+        <div class="result-row">
+          <div class="card img-card">
+            <div class="card-label">Original Image</div>
+            <img id="imgOriginal" src="" alt="Original">
+            <div class="img-meta">
+              <span>Input · 224×224</span>
+              <span>Normalized</span>
+            </div>
+          </div>
+          <div class="card img-card">
+            <div class="card-label">Grad-CAM Overlay</div>
+            <img id="imgOverlay" src="" alt="Grad-CAM">
+            <div class="img-meta">
+              <span>layer4 · 7×7 → upscaled</span>
+              <span>Texture regions activated</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Context -->
+        <div class="card">
+          <div class="card-label">Interpretation Context</div>
+          <p class="context-note">
+            Grad-CAM operates on ResNet-18's final convolutional layer (7×7 spatial resolution), upscaled to 224×224 for overlay.
+            This coarse resolution means activations reflect <strong>global texture regions</strong>, not precise defect boundaries.
+            Even the most focused explanations in this dataset (Focus ≈ 0.28) are not tightly localized.
+            This is an inherent limitation of Grad-CAM on CNNs — not a model accuracy failure.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: CONSISTENCY EXPLORER ── -->
+    <section class="tab-panel" id="tab-consistency">
+      <div class="panel-header">
+        <div>
+          <div class="panel-subtitle">Explanation Stability Analysis</div>
+          <div class="panel-title">Consistency <span>Explorer</span></div>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        <div class="disclaimer-icon">NOTE</div>
+        <div class="disclaimer-text">
+          Upload 2–6 images (ideally of the <strong>same defect class</strong>) to examine whether the model produces stable Grad-CAM explanations.
+          The research found <strong>partial consistency with notable instability</strong> — similar activation trends but varying shape and location.
+        </div>
+      </div>
+
+      <div class="multi-upload-zone" id="multiUploadZone"
+           onclick="document.getElementById('multiFileInput').click()"
+           ondragover="handleMultiDragOver(event)"
+           ondragleave="handleMultiDragLeave()"
+           ondrop="handleMultiDrop(event)">
+        <div class="upload-primary" style="font-size:18px">Drop 2–6 images here</div>
+        <div class="upload-secondary" style="margin-top:6px">Select multiple files at once</div>
+        <div class="upload-hint" style="margin-top:12px">Ideally same defect class · up to 6 images</div>
+      </div>
+      <input type="file" id="multiFileInput" accept="image/*" multiple onchange="handleMultiSelect(event)">
+
+      <div class="loading-state" id="multiLoadingState">
+        <div class="loader-bar"></div>
+        <div class="loader-label">PROCESSING BATCH</div>
+        <div class="loader-bar"></div>
+      </div>
+
+      <div class="error-msg" id="multiErrorMsg"></div>
+
+      <div class="results-area" id="consistencyResults">
+        <div class="consistency-meta" id="consistencyMeta"></div>
+        <div class="consistency-grid" id="consistencyGrid"></div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-label">What This Tells Us</div>
+          <p class="context-note">
+            A high Focus Score standard deviation across images of the same class indicates that
+            Grad-CAM explanations are <strong>unstable</strong> — the model does not consistently attend to the same region.
+            This is a known limitation of gradient-based explanations in CNNs and does not reflect classification quality.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
